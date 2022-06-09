@@ -53,27 +53,12 @@ app.post('/signup', async (req, res) => {
             VALUES 
                 ($1, $2, $3)
         `, [name, email, passwordHash])
-        const token = uuid()
-        const userInfos = await connection.query(`
-            SELECT 
-                * 
-            FROM 
-                users 
-            WHERE 
-                email = ($1)
-        `, [email])
-        const id = userInfos.rows[0].id
-        await connection.query(`
-            INSERT INTO 
-                keys (id, token) 
-            VALUES 
-                ($1, $2)
-        `, [id, token])
         res.status(201).send('Cadastro realizado com sucesso');
     } catch (err) {
         res.status(500).send(err);
     }
 })
+
 
 const port = process.env.PORT
 app.listen(port, () => {
