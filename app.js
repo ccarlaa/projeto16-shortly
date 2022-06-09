@@ -214,6 +214,48 @@ app.get('/urls/open/:shortUrl', async (req, res) => {
     }
 })
 
+app.delete('/urls/:id', async (req, res) => {
+    const { authorization } = req.headers
+    const { id } = req.params
+    const token = authorization?.replace('Bearer ', '')
+    if(!token){
+        res.status(401).send('Token invalido')
+        return
+    }
+    try {
+        const requisitionValidation = await connection.query(`
+            SELECT 
+                urls."shortUrl", urls."userId", keys."token"
+            FROM 
+                urls 
+            JOIN 
+                keys
+            ON
+                urls."userId" = keys."userId"
+            WHERE 
+                urls."id" = ($1)
+        `, [id])
+        if(requisitionValidation.rowCount === 0){
+            res.status(404).send("Url não encontrada")
+            return 
+        }
+        const urlToken = requisitionValidation.rows[0].token
+        if(urlToken !== token){
+            res.status(401).send("Essa url não pertence a esse usuário")
+            return 
+        }
+        await connection.query(`
+            DELETE FROM
+                urls
+            WHERE 
+                id = ($1)
+        `, [id])
+        res.status(204).send("Url deletada") 
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
+
 const port = process.env.PORT
 app.listen(port, () => {
     console.log(`|-----------------------------------|`)
