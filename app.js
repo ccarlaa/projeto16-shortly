@@ -127,9 +127,8 @@ app.post('/urls/shorten', async (req, res) => {
     const token = authorization?.replace('Bearer ', '')
     if(!token){
         res.status(401).send('Token invalido')
-        return;
+        return
     }
-
     try {
         const tokenValidation = await connection.query(`
             SELECT 
@@ -141,6 +140,7 @@ app.post('/urls/shorten', async (req, res) => {
         `, [token])
         if(tokenValidation.rowCount == 0){
             res.status(401).send("Token não encontrado")
+            return
         }
         const userId = tokenValidation.rows[0].userId
         const shortUrl = nanoid(8)
@@ -156,6 +156,33 @@ app.post('/urls/shorten', async (req, res) => {
     }
 })
 
+app.get('/urls/:id', async (req, res) => {
+    const idUrl = req.params.id
+    try {
+        const idValidation = await connection.query(`
+            SELECT 
+                * 
+            FROM 
+                urls 
+            WHERE 
+                id = ($1)
+        `, [idUrl])
+        console.log(idValidation)
+        if(idValidation.rowCount === 0){
+            res.status(404).send("Url não encontrada")
+            return 
+        }
+        const { id, shortUrl, url } = idValidation.rows[0]
+        const answer = {
+            id,
+            shortUrl,
+            url
+        }
+        res.status(200).send(answer) 
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
 
 const port = process.env.PORT
 app.listen(port, () => {
