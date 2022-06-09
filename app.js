@@ -1,6 +1,7 @@
 import express from "express"
 import cors from "cors"
 import dotenv from "dotenv"
+import { nanoid } from 'nanoid'
 
 const app = express()
 app.use(express.json())
@@ -110,6 +111,50 @@ app.post('/signin', async (req, res) => {
     }
 })
 
+app.post('/urls/shorten', async (req, res) => {
+    const { authorization } = req.headers
+    const { url } = req.body
+    const urlSchema = joi.object({
+        url: joi.string()
+            .uri()
+            .required()
+    })
+    const urlValidation = urlSchema.validate({url})
+    if(urlValidation.error){
+		res.status(422).send(urlValidation.error.details[0].message)
+        return
+    }
+    const token = authorization?.replace('Bearer ', '')
+    if(!token){
+        res.status(401).send('Token invalido')
+        return;
+    }
+
+    try {
+        const tokenValidation = await connection.query(`
+            SELECT 
+                * 
+            FROM 
+                keys 
+            WHERE 
+                keys."token" = ($1)
+        `, [token])
+        if(tokenValidation.rowCount == 0){
+            res.status(401).send("Token não encontrado")
+        }
+        const userId = tokenValidation.rows[0].userId
+        const shortUrl = nanoid(8)
+        await connection.query(`
+            INSERT INTO 
+                urls ("userId", url, "shortUrl") 
+            VALUES 
+                ($1, $2, $3)
+        `, [userId, url, shortUrl])
+        res.status(201).send({shortUrl: shortUrl})
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
 
 
 const port = process.env.PORT
