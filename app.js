@@ -184,6 +184,36 @@ app.get('/urls/:id', async (req, res) => {
     }
 })
 
+app.get('/urls/open/:shortUrl', async (req, res) => {
+    const { shortUrl } = req.params
+    try {
+        const shortUrlValidation = await connection.query(`
+            SELECT 
+                * 
+            FROM 
+                urls 
+            WHERE 
+                "shortUrl" = ($1)
+        `, [shortUrl])
+        if(shortUrlValidation.rowCount === 0){
+            res.status(404).send("Url não encontrada")
+            return 
+        }
+        await connection.query(`
+            UPDATE 
+                urls 
+            SET 
+                views = (views + 1)
+            WHERE 
+                "shortUrl" = ($1)
+        `, [shortUrl])
+        const { url } = shortUrlValidation.rows[0]
+        res.redirect(200, url)
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
+
 const port = process.env.PORT
 app.listen(port, () => {
     console.log(`|-----------------------------------|`)
