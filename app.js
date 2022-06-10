@@ -90,7 +90,6 @@ app.post('/signin', async (req, res) => {
         if(bcrypt.compareSync(password, userRows.password)){
             const token = uuid()
             const id = userRows.id
-            console.log(id + " --- " + token)
             await connection.query(`
                 INSERT INTO 
                     keys ("userId", token) 
@@ -223,6 +222,18 @@ app.delete('/urls/:id', async (req, res) => {
         return
     }
     try {
+        const tokenValidation = await connection.query(`
+            SELECT 
+                * 
+            FROM 
+                keys 
+            WHERE 
+                keys."token" = ($1)
+        `, [token])
+        if(tokenValidation.rowCount == 0){
+            res.status(401).send("Token não encontrado")
+            return
+        }
         const requisitionValidation = await connection.query(`
             SELECT 
                 urls."shortUrl", urls."userId", keys."token"
@@ -251,6 +262,95 @@ app.delete('/urls/:id', async (req, res) => {
                 id = ($1)
         `, [id])
         res.status(204).send("Url deletada") 
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
+
+app.get('/users/:id', async (req, res) => {
+    const { authorization } = req.headers
+    const userId  = req.params.id
+    const token = authorization?.replace('Bearer ', '')
+    if(!token){
+        res.status(401).send('Token invalido')
+        return
+    }
+    try {
+        const tokenValidation = await connection.query(`
+            SELECT 
+                * 
+            FROM 
+                keys 
+            WHERE 
+                keys."token" = ($1)
+        `, [token])
+        if(tokenValidation.rowCount == 0){
+            res.status(401).send("Token não encontrado")
+            return
+        }
+        if(tokenValidation.rowCount[0].userId === userId){
+            res.status(404).send("Usuário não encontrado")
+            return 
+        }
+        const infos = await connection.query(`
+            SELECT 
+                users."id" AS "userId", users."name", urls."views" AS "visitCount", urls.id, urls."shortUrl", urls.url
+            FROM 
+                users
+            JOIN 
+                urls
+            ON
+                urls."userId" = users."id"
+            WHERE 
+                urls."userId" = ($1)
+            GROUP BY
+                users."id", urls."id"
+        `,[userId])
+        const infosRows = infos.rows
+        let shortenedUrls = []
+        let visitCountTotal = 0
+        for(let info of infosRows){
+            info = {
+                ...info,
+                id: info.id,
+                shortUrl: info.shortUrl,
+                url: info.url,
+                visitCount: info.visitCount
+            }
+            visitCountTotal += info.visitCount
+            shortenedUrls.push(info)
+        }
+        let answer = {
+            id: userId,
+            name: infosRows[0].name,
+            visitCount: visitCountTotal,
+            ...{shortenedUrls}
+        }
+        res.status(200).send(answer) 
+    } catch (err) {
+        res.status(500).send(err)
+    }
+})
+
+app.get('/ranking', async (req, res) => {
+    try {
+        const answer = await connection.query(`
+            SELECT 
+                users."id" AS "id", users."name", COUNT(urls."views") AS "linksCount", SUM(urls."views") AS "visitCount"
+            FROM 
+                users
+            JOIN 
+                urls
+            ON
+                urls."userId" = users."id"
+            GROUP BY
+                users."id"
+            ORDER BY
+                SUM(urls."views") DESC
+            LIMIT 
+                10
+        `)
+        res.status(200).send(answer.rows)     
     } catch (err) {
         res.status(500).send(err)
     }
