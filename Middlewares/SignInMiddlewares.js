@@ -1,6 +1,6 @@
-import connection from "../db.js";
-import joi from "joi";
-import bcrypt from 'bcrypt';
+import connection from "../db.js"
+import joi from "joi"
+import bcrypt from 'bcrypt'
 
 export async function signInMiddleware(req, res, next) {
     const { email, password } = req.body
@@ -30,7 +30,6 @@ export async function signInMiddleware(req, res, next) {
             res.status(401).send("Usuário não encontrado")
         }
         if(bcrypt.compareSync(password, userRows.password)){
-            console.log(userRows.id)
             res.locals.user = userRows
         } else {
             res.status(401).send('Senha incorreta')

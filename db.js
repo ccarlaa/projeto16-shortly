@@ -6,9 +6,9 @@ dotenv.config()
 const { Pool } = pg
 const db = {
 	connectionString: process.env.DATABASE_URL,
-  	// user: "postgres",
-	// password: process.env.PASSWORD,
-	// database: "shortly"
+  	user: "postgres",
+	password: process.env.PASSWORD,
+	database: "shortly"
 }
 
 if(process.env.MODE === "PROD"){
