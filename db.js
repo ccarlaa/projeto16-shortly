@@ -7,7 +7,7 @@ const { Pool } = pg
 const db = {
 	connectionString: process.env.DATABASE_URL,
 	// database: "dcsh2dhcbi0vg9",
-  	user: "",
+  	username: process.env.EMAIL,
 	password: process.env.PASSWORD,
 }
 
